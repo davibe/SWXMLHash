@@ -563,22 +563,13 @@ public enum XMLIndexer {
             return try match.withAttribute(attr, value)
         case .list(let list):
             if let elem = list.filter({
-                if $0.caseInsensitive {
-                    return $0.attribute(by: attr)?.text.caseInsensitiveCompare(value) == .orderedSame
-                } else {
-                    return $0.attribute(by: attr)?.text == value
-                }
+                return value.compare($0.attribute(by: attr)?.text, $0.caseInsensitive)
             }).first {
                 return .element(elem)
             }
             throw IndexingError.attributeValue(attr: attr, value: value)
         case .element(let elem):
-            if elem.caseInsensitive {
-                if elem.attribute(by: attr)?.text.caseInsensitiveCompare(value) == .orderedSame {
-                    return .element(elem)
-                }
-            }
-            if elem.attribute(by: attr)?.text == value {
+            if value.compare(elem.attribute(by: attr)?.text, elem.caseInsensitive) {
                 return .element(elem)
             }
             throw IndexingError.attributeValue(attr: attr, value: value)
@@ -632,11 +623,7 @@ public enum XMLIndexer {
             return .stream(opStream)
         case .element(let elem):
             let match = elem.xmlChildren.filter({
-                if $0.caseInsensitive {
-                    return $0.name.caseInsensitiveCompare(key) == .orderedSame
-                } else {
-                    return $0.name == key
-                }
+                return $0.name.compare(key, $0.caseInsensitive)
             })
             if !match.isEmpty {
                 if match.count == 1 {
@@ -784,9 +771,7 @@ public class XMLElement: XMLContent {
 
     public func attribute(by name: String) -> XMLAttribute? {
         if caseInsensitive {
-            return allAttributes.filter({ (key, value) -> Bool in
-                return key.caseInsensitiveCompare(name) == .orderedSame
-            }).first?.value
+            return allAttributes.filter({ $0.key.compare(name, true) }).first?.value
         }
         return allAttributes[name]
     }
@@ -909,3 +894,14 @@ extension SWXMLHash {
 }
 
 public typealias SWXMLHashXMLElement = XMLElement
+
+fileprivate extension String {
+    func compare(_ s2: String?, _ insensitive: Bool) -> Bool {
+        guard let s2 = s2 else { return false }
+        let s1 = self
+        if (insensitive) {
+            return s1.caseInsensitiveCompare(s2) == .orderedSame
+        }
+        return s1 == s2
+    }
+}
